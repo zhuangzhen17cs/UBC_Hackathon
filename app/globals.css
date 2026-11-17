@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+:root {
+  --background: #07080d;
+  --foreground: #f4f4f5;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background:
+    radial-gradient(ellipse 70% 42% at 50% -12%, rgba(251, 113, 133, 0.16), transparent 55%),
+    radial-gradient(ellipse 40% 32% at 100% 0%, rgba(96, 165, 250, 0.12), transparent 50%),
+    var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), sans-serif;
+}
+
+@keyframes live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+}
+
+@keyframes feed-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.live-dot {
+  animation: live-pulse 1.4s ease-in-out infinite;
+}
+
+.feed-in {
+  animation: feed-in 420ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot,
+  .feed-in {
+    animation: none;
+  }
+}
