@@ -47,7 +47,7 @@ function Sparkline({ prices }: { prices: number[] }) {
   );
 }
 
-export function PriceChart({ tape = null }: { tape?: Tape | null }) {
+export function PriceChart({ tape = null, contract = false }: { tape?: Tape | null; contract?: boolean }) {
   const [snapshot, setSnapshot] = useState<PriceSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -95,23 +95,23 @@ export function PriceChart({ tape = null }: { tape?: Tape | null }) {
   return (
     <Panel
       id="price-chart"
-      title="SOL / USD"
+      title={contract ? "Yes price" : "SOL / USD"}
       note={
-        showingTape
-          ? "Demo tape. The short round swings this price. The open is the first print, and the close settles the market."
+        contract
+          ? "Price of the Up contract on Gemini. Gemini's published result settles the round."
           : "Public market feed until a QuickNode Stream is connected."
       }
     >
       <div className="flex min-h-40 flex-col justify-between gap-3">
         {displayPrice == null ? (
-          <p className="font-mono text-sm text-zinc-400">{error ?? "Fetching SOL price…"}</p>
+          <p className="text-base text-[#d9cbb6]">{error ?? "Fetching SOL price…"}</p>
         ) : (
           <div>
-            <p className="font-mono text-4xl tracking-tight text-zinc-50 tabular-nums sm:text-5xl">
+            <p className="text-5xl text-[#fff8dc] mc-num sm:text-6xl">
               {usd.format(displayPrice)}
             </p>
-            <p className="mt-1 text-xs text-zinc-400">
-              {showingTape ? "Demo tape" : snapshot ? sourceLabel(snapshot) : "Public market"}
+            <p className="mt-1 text-sm text-[#d9cbb6]">
+              {contract ? "Gemini contract" : snapshot ? sourceLabel(snapshot) : "Public market"}
               {!showingTape && observed ? ` · ${observed}` : ""}
               {error && !showingTape ? " · update failed" : ""}
             </p>

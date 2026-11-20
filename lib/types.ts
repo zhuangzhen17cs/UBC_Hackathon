@@ -105,6 +105,20 @@ export type CommentaryLine = {
   at: string;
 };
 
+/** The Gemini SOL contract this round is locked to. */
+export type RoundContract = {
+  eventTicker: string;
+  instrumentSymbol: string;
+  outcome: string;
+  expiresAt: string;
+  yesPrice: number | null;
+  bid: number | null;
+  ask: number | null;
+  strike: number | null;
+  /** True after expiry, while Gemini has not published yes or no. */
+  awaitingResult: boolean;
+};
+
 /** Public round view. Lobby is `null` — no round has been started. */
 export type RoundSnapshot = {
   id: string;
@@ -113,9 +127,11 @@ export type RoundSnapshot = {
   phaseEndsAt: string;
   /** The binary question for this round. */
   question: string;
-  /** SOL price when the battle opened. The market resolves against this. */
+  /** Strike captured by Gemini, once the observation window has opened. */
   openPrice: number | null;
+  /** Latest Yes price of the locked contract. */
   priceUsd: number | null;
+  contract: RoundContract | null;
   result: MarketResult | null;
   agents: RoundAgentState[];
   /** Newest calls first. */

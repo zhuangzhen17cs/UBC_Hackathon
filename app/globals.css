@@ -1,43 +1,313 @@
+/* COINRAID block theme */
 @import "tailwindcss";
 
 :root {
-  --background: #07080d;
-  --foreground: #f4f4f5;
+  --background: #78c0f0;
+  --foreground: #24180f;
+  --ink: #f6f3ea;
+  --board: #2c2c2c;
+  --wood: #6b4423;
   color-scheme: dark;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-pixel);
+  --font-mono: var(--font-pixel);
 }
 
 body {
-  background:
-    radial-gradient(ellipse 70% 42% at 50% -12%, rgba(251, 113, 133, 0.16), transparent 55%),
-    radial-gradient(ellipse 40% 32% at 100% 0%, rgba(96, 165, 250, 0.12), transparent 50%),
-    var(--background);
+  background-color: #78c0f0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.22) 2px, transparent 2px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.22) 2px, transparent 2px),
+    linear-gradient(#9fd6ff 0%, #78c0f0 55%, #67b4ea 100%);
+  background-size: 32px 32px, 32px 32px, auto;
+  background-attachment: fixed;
   color: var(--foreground);
-  font-family: var(--font-sans), sans-serif;
+  font-family: var(--font-pixel), sans-serif;
+  image-rendering: pixelated;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 0;
+  height: 36px;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(90deg, #67b34a 0 16px, #57993d 16px 32px),
+    repeating-linear-gradient(#8d5a2b 0 8px, #754820 8px 16px);
+  background-size: 100% 12px, 100% 24px;
+  background-position: top, bottom;
+  background-repeat: no-repeat;
+  box-shadow: inset 0 4px 0 #3e6d28;
+}
+
+body > * {
+  position: relative;
+  z-index: 1;
+}
+
+.mc-num {
+  font-family: var(--font-num), ui-sans-serif, sans-serif;
+  font-weight: 800;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.mc-logo {
+  font-family: var(--font-press), monospace;
+  letter-spacing: 0.04em;
+  color: #fff8dc;
+  text-shadow:
+    4px 4px 0 #3d2914,
+    -2px 0 0 #3d2914,
+    2px 0 0 #3d2914,
+    0 -2px 0 #3d2914;
+}
+
+.mc-kicker {
+  font-family: var(--font-press), monospace;
+  font-size: 10px;
+  line-height: 1.6;
+  color: #f6d56a;
+}
+
+.mc-panel {
+  background: var(--board);
+  color: var(--ink);
+  border: 4px solid #111;
+  box-shadow:
+    inset 3px 3px 0 #6d6d6d,
+    inset -3px -3px 0 #161616,
+    6px 6px 0 #3d2914;
+  padding: 1rem;
+}
+
+.mc-panel h2,
+.mc-label {
+  font-family: var(--font-press), monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #f6d56a;
+}
+
+.mc-slot {
+  background: #1b1b1b;
+  border: 3px solid #111;
+  box-shadow:
+    inset 2px 2px 0 #4a4a4a,
+    inset -2px -2px 0 #0d0d0d;
+}
+
+.mc-card {
+  background: #3a3228;
+  color: var(--ink);
+  border: 4px solid #111;
+  box-shadow:
+    inset 3px 3px 0 #6b5a45,
+    inset -3px -3px 0 #1a140e,
+    5px 5px 0 #3d2914;
+}
+
+.mc-btn {
+  border: 3px solid #111;
+  background: #c6c6c6;
+  color: #1a1a1a;
+  box-shadow:
+    inset 3px 3px 0 #ffffff,
+    inset -3px -3px 0 #555,
+    3px 3px 0 #3d2914;
+  padding: 0.55rem 0.8rem;
+  font-family: var(--font-press), monospace;
+  font-size: 10px;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.mc-btn:hover:not(:disabled) {
+  transform: translate(1px, 1px);
+  box-shadow:
+    inset 3px 3px 0 #ffffff,
+    inset -3px -3px 0 #555,
+    2px 2px 0 #3d2914;
+}
+
+.mc-btn:disabled {
+  opacity: 0.45;
+}
+
+.mc-btn:focus-visible {
+  outline: 3px solid #f6d56a;
+  outline-offset: 2px;
+}
+
+.mc-btn-go {
+  background: #5d9c3a;
+  color: #f3ffe8;
+  box-shadow:
+    inset 3px 3px 0 #b6e38a,
+    inset -3px -3px 0 #2d5a16,
+    3px 3px 0 #3d2914;
+}
+
+.mc-btn-gold {
+  background: #e2b340;
+  color: #3d2914;
+  box-shadow:
+    inset 3px 3px 0 #ffe7a3,
+    inset -3px -3px 0 #8a6414,
+    3px 3px 0 #3d2914;
+}
+
+.mc-btn-rose {
+  background: #d45d4a;
+  color: #fff6f2;
+  box-shadow:
+    inset 3px 3px 0 #f0b2a6,
+    inset -3px -3px 0 #7a2c22,
+    3px 3px 0 #3d2914;
+}
+
+.mc-input {
+  background: #141414;
+  color: #f6f3ea;
+  border: 3px solid #111;
+  box-shadow: inset 2px 2px 0 #000;
+  padding: 0.5rem 0.7rem;
+}
+
+.mc-input::placeholder {
+  color: #9a8b78;
+}
+
+.mc-chip {
+  border: 2px solid #111;
+  background: #1b1b1b;
+  color: #f6f3ea;
+  padding: 0.1rem 0.4rem;
+  font-size: 11px;
+}
+
+.mc-chip-yes {
+  background: #3d8f2a;
+  color: #f3ffe8;
+}
+
+.mc-chip-no {
+  background: #b44432;
+  color: #fff4f0;
+}
+
+.mc-chip-pass {
+  background: #6d6458;
+  color: #f6f3ea;
+}
+
+.mc-note {
+  background: #fff4d2;
+  color: #3d2914;
+  border: 3px solid #3d2914;
+  box-shadow: 4px 4px 0 #3d2914;
+  padding: 0.55rem 0.7rem;
+}
+
+.mc-face {
+  position: relative;
+  display: inline-block;
+  width: 42px;
+  height: 42px;
+  flex: none;
+  border: 3px solid #111;
+  box-shadow: 3px 3px 0 #111;
+}
+
+.mc-face i {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #1a1a1a;
+}
+
+.mc-face i:nth-child(1) {
+  top: 10px;
+  left: 8px;
+  box-shadow: 2px 2px 0 #fff;
+}
+
+.mc-face i:nth-child(2) {
+  top: 10px;
+  right: 8px;
+  box-shadow: 2px 2px 0 #fff;
+}
+
+.mc-face i:nth-child(3) {
+  bottom: 9px;
+  left: 10px;
+  width: 16px;
+  height: 4px;
+  background: #f6d7c3;
+  box-shadow: 0 4px 0 #1a1a1a;
+}
+
+.mc-face i:nth-child(4),
+.mc-face i:nth-child(5) {
+  top: 20px;
+  width: 5px;
+  height: 4px;
+  background: #ff9aaf;
+}
+
+.mc-face i:nth-child(4) {
+  left: 4px;
+}
+
+.mc-face i:nth-child(5) {
+  right: 4px;
+}
+
+.wallet-adapter-button,
+.wallet-adapter-button-trigger {
+  height: auto !important;
+  border-radius: 0 !important;
+  font-family: var(--font-press), monospace !important;
+  font-size: 10px !important;
+  line-height: 1.4 !important;
+  text-transform: uppercase;
+  background: #3d8f2a !important;
+  color: #f3ffe8 !important;
+  border: 3px solid #111 !important;
+  box-shadow:
+    inset 3px 3px 0 #b6e38a,
+    inset -3px -3px 0 #1d4d12,
+    3px 3px 0 #3d2914 !important;
+}
+
+.wallet-adapter-modal-wrapper {
+  border-radius: 0 !important;
+  font-family: var(--font-pixel), sans-serif;
 }
 
 @keyframes live-pulse {
   0%,
   100% {
     opacity: 1;
-    transform: scale(1);
   }
   50% {
-    opacity: 0.4;
-    transform: scale(0.8);
+    opacity: 0.35;
   }
 }
 
 @keyframes feed-in {
   from {
     opacity: 0;
-    transform: translateY(-8px);
+    transform: translateY(-6px);
   }
   to {
     opacity: 1;
@@ -46,11 +316,11 @@ body {
 }
 
 .live-dot {
-  animation: live-pulse 1.4s ease-in-out infinite;
+  animation: live-pulse 1.1s steps(2, end) infinite;
 }
 
 .feed-in {
-  animation: feed-in 420ms ease-out;
+  animation: feed-in 280ms steps(3, end);
 }
 
 @media (prefers-reduced-motion: reduce) {

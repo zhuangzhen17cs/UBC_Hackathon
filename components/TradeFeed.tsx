@@ -7,9 +7,9 @@ type TradeFeedProps = {
 };
 
 const SIDE_CLASS: Record<MarketSide, string> = {
-  YES: "bg-emerald-400/15 text-emerald-300",
-  NO: "bg-rose-400/15 text-rose-300",
-  PASS: "bg-white/10 text-zinc-300",
+  YES: "mc-chip mc-chip-yes",
+  NO: "mc-chip mc-chip-no",
+  PASS: "mc-chip mc-chip-pass",
 };
 
 function clock(iso: string): string {
@@ -27,33 +27,33 @@ export function TradeFeed({ calls }: TradeFeedProps) {
     <Panel
       id="trade-feed"
       title="Calls"
-      note="YES finishes above the open. NO finishes below. PASS sits out. The Explorer link is the devnet memo."
+      note="YES means the Gemini Up contract resolves yes. NO means it resolves no. PASS sits out."
     >
       {calls.length === 0 ? (
-        <p className="text-sm text-zinc-400">Waiting for the first call.</p>
+        <p className="text-base text-[#d9cbb6]">Waiting for the first call.</p>
       ) : (
         <ol className="flex max-h-80 flex-col gap-2 overflow-y-auto pr-1">
           {calls.map((call) => (
             <li
               key={call.id}
-              className="feed-in rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2"
-              style={{ borderLeftColor: call.color, borderLeftWidth: 3 }}
+              className="feed-in mc-slot px-3 py-2"
+              style={{ boxShadow: `inset 6px 0 0 ${call.color}` }}
             >
               <div className="flex items-center justify-between gap-3">
                 <span className="flex min-w-0 items-center gap-2">
                   <span className="truncate text-sm font-medium" style={{ color: call.color }}>
                     {call.agentName}
                   </span>
-                  <span className={`rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-wide ${SIDE_CLASS[call.side]}`}>
+                  <span className={SIDE_CLASS[call.side]}>
                     {call.side}
                     {call.side === "PASS" ? "" : ` ${Math.round(call.confidence * 100)}%`}
                   </span>
                 </span>
-                <time className="shrink-0 font-mono text-[11px] text-zinc-500 tabular-nums" dateTime={call.at}>
+                <time className="shrink-0 text-sm text-[#ffe7a3] mc-num" dateTime={call.at}>
                   {clock(call.at)}
                 </time>
               </div>
-              <p className="mt-1 text-sm text-zinc-300">{call.reason}</p>
+              <p className="mt-1 text-base text-[#f0e6d4]">{call.reason}</p>
               {call.signature ? (
                 <a
                   className="mt-1 inline-block text-xs text-emerald-300 underline-offset-2 hover:underline"

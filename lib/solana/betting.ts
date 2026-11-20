@@ -43,8 +43,8 @@ export async function verifyDeposit(signature: string): Promise<VerifiedBet> {
     return { ok: false, error: "That transaction is too old." };
   }
 
-  const memo = (tx.meta.logMessages ?? []).find((line) => line.includes("Bot Royale bet "));
-  const match = memo?.match(/Bot Royale bet ([a-z0-9-]{2,32})(?![a-z0-9-])/);
+  const memo = (tx.meta.logMessages ?? []).find((line) => line.includes("COINRAID bet "));
+  const match = memo?.match(/COINRAID bet ([a-z0-9-]{2,32})(?![a-z0-9-])/);
   const agentId = match?.[1];
   if (!agentId) return { ok: false, error: "The bet memo is missing." };
 

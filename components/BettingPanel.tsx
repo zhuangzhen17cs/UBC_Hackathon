@@ -92,7 +92,7 @@ export function BettingPanel({ round }: BettingPanelProps) {
         new TransactionInstruction({
           programId: MEMO_PROGRAM,
           keys: [{ pubkey: publicKey, isSigner: true, isWritable: false }],
-          data: Buffer.from(`Bot Royale bet ${selectedId}`),
+          data: Buffer.from(`COINRAID bet ${selectedId}`),
         }),
       );
       const signature = await sendTransaction(tx, connection);
@@ -124,8 +124,8 @@ export function BettingPanel({ round }: BettingPanelProps) {
     >
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-[0.16em] text-zinc-500">Pool</p>
-          <p className="font-mono text-2xl text-zinc-50 tabular-nums">{pool.toFixed(2)} USDC</p>
+          <p className="mc-label">Pool</p>
+          <p className="text-3xl text-[#fff8dc] mc-num">{pool.toFixed(2)} USDC</p>
         </div>
         <WalletMultiButton />
       </div>
@@ -135,13 +135,13 @@ export function BettingPanel({ round }: BettingPanelProps) {
           const quote = quotes.find((item) => item.agentId === agent.id);
           const profit = quote?.profitIfSideWins;
           return (
-            <li key={agent.id} className="flex items-center justify-between gap-3 text-sm">
+            <li key={agent.id} className="mc-slot flex items-center justify-between gap-3 px-2 py-1 text-base">
               <span className="flex min-w-0 items-center gap-2">
-                <span className="inline-block size-2 shrink-0 rounded-full" style={{ backgroundColor: agent.color }} aria-hidden="true" />
-                <span className="truncate">{agent.name}</span>
-                <span className="font-mono text-[11px] text-zinc-500">{agent.side}</span>
+                <span className="inline-block size-3 shrink-0 border-2 border-black" style={{ backgroundColor: agent.color }} aria-hidden="true" />
+                <span className="truncate font-bold">{agent.name}</span>
+                <span className="text-xs text-[#f6d56a]">{agent.side}</span>
               </span>
-              <span className="shrink-0 font-mono text-zinc-300 tabular-nums">
+              <span className="shrink-0 text-[#f0e6d4] mc-num">
                 {(quote?.stake ?? 0).toFixed(2)}
                 {profit == null ? "" : ` · +${profit.toFixed(2)} if ${agent.side}`}
               </span>
@@ -165,7 +165,7 @@ export function BettingPanel({ round }: BettingPanelProps) {
                   <button
                     key={agent.id}
                     type="button"
-                    className={`rounded-full border px-3 py-1 text-sm ${selectedId === agent.id ? "border-white bg-white text-zinc-950" : "border-white/15 text-zinc-200"}`}
+                    className={`mc-btn ${selectedId === agent.id ? "mc-btn-gold" : ""}`}
                     onClick={() => setAgentId(agent.id)}
                   >
                     {agent.name}
@@ -181,52 +181,52 @@ export function BettingPanel({ round }: BettingPanelProps) {
                   inputMode="decimal"
                   value={amount}
                   onChange={(event) => setAmount(event.target.value)}
-                  className="w-28 rounded-full border border-white/15 bg-black/30 px-3 py-2 font-mono text-sm"
+                  className="mc-input w-28"
                 />
                 <button
                   type="submit"
                   disabled={busy || agents.length === 0}
-                  className="rounded-full bg-white px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-40"
+                  className="mc-btn mc-btn-go"
                 >
                   {busy ? "Sending…" : "Stake USDC"}
                 </button>
               </div>
               {projectedShare > 0 ? (
-                <p className="text-sm text-zinc-300">
+                <p className="text-base text-[#f0e6d4]">
                   This stake would be {Math.round(projectedShare * 100)}% of the book on this agent, so it would take that share of the profit.
                 </p>
               ) : null}
             </form>
           ) : (
-            <p className="mt-4 text-sm text-zinc-400">Connect Phantom on Devnet. The stake is a real token transfer to escrow.</p>
+            <p className="mt-4 text-base text-[#f0e6d4]">Connect Phantom on Devnet. The stake is a real token transfer to escrow.</p>
           )
         ) : (
-          <p className="mt-4 text-sm text-zinc-400">
+          <p className="mt-4 text-base text-[#f0e6d4]">
             {round ? "The window is closed. Their last call is the side." : "Start a round to open the window."}
           </p>
         )
       ) : config?.escrow ? (
-        <p className="mt-4 text-sm text-zinc-400">
+        <p className="mt-4 text-base text-[#f0e6d4]">
           Escrow is ready. Fund it with devnet SOL at faucet.solana.com, run npm run setup:devnet again, then restart the server. That mints the arena USDC the wallet sends.
         </p>
       ) : (
-        <p className="mt-4 text-sm text-zinc-400">Run npm run setup:devnet, then restart the server. Devnet only.</p>
+        <p className="mt-4 text-base text-[#f0e6d4]">Run npm run setup:devnet, then restart the server. Devnet only.</p>
       )}
 
       {yourShare > 0 && selected?.profitIfSideWins != null ? (
-        <p className="mt-3 text-sm text-emerald-200">
+        <p className="mt-3 text-base text-[#b6e38a]">
           You hold {Math.round(yourShare * 100)}% of this agent. If {selected.side} hits, your cut of the profit is{" "}
           {(selected.profitIfSideWins * yourShare).toFixed(2)} USDC, plus your stake back.
         </p>
       ) : null}
 
-      {message ? <p className="mt-3 text-sm text-zinc-200">{message}</p> : null}
+      {message ? <p className="mt-3 text-base text-[#fff8dc]">{message}</p> : null}
 
       {round && round.payouts.length > 0 ? (
         <ul className="mt-4 flex flex-col gap-2 text-sm">
           {round.payouts.map((payout) => (
             <li key={`${payout.wallet}-${payout.kind}-${payout.amount}`} className="flex items-center justify-between gap-3">
-              <span className="truncate font-mono text-xs text-zinc-400">
+              <span className="truncate text-sm text-[#d9cbb6]">
                 {payout.kind === "refund" ? "Refund" : "Paid"} {payout.amount.toFixed(2)} · {payout.wallet.slice(0, 4)}…{payout.wallet.slice(-4)}
               </span>
               {payout.signature ? (

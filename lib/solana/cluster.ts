@@ -2,7 +2,7 @@
 export function assertDevnetRpc(url: string) {
   const lower = url.toLowerCase();
   if (lower.includes("mainnet")) {
-    throw new Error("Refusing a mainnet RPC. Bot Royale is devnet only.");
+    throw new Error("Refusing a mainnet RPC. COINRAID is devnet only.");
   }
 }
 

@@ -8,6 +8,14 @@ export type DecisionContext = {
   openPrice: number | null;
   priceUsd: number;
   history: readonly { priceUsd: number }[];
+  /** Present when the round is locked to a Gemini contract. */
+  contract?: {
+    outcome: string;
+    strike: number | null;
+    bid: number | null;
+    ask: number | null;
+    secondsLeft: number;
+  };
 };
 
 const DEFAULT_TIMEOUT_MS = 25_000;
@@ -17,7 +25,7 @@ const SIDES: readonly MarketSide[] = ["YES", "NO", "PASS"];
 const OUTPUT_RULES = [
   "Reply with JSON only, no markdown.",
   '{"side":"YES"|"NO"|"PASS","confidence":0 to 1,"reason":"one sentence"}',
-  "YES means SOL finishes above the open. NO means it finishes below.",
+  "YES means the contract outcome in the brief happens. NO means it does not.",
   "PASS means you will not take a side. Use confidence 0.",
 ].join(" ");
 
@@ -38,13 +46,26 @@ function timeoutMs(): number {
 
 function marketBrief(context: DecisionContext): string {
   const prices = context.history.map((point) => point.priceUsd).filter((price) => Number.isFinite(price));
-  const open = context.openPrice ?? prices[0] ?? context.priceUsd;
-  const changePct = open > 0 ? ((context.priceUsd - open) / open) * 100 : 0;
   const recent = [...prices.slice(-4), context.priceUsd];
+  const contract = context.contract;
+  if (!contract) {
+    const open = context.openPrice ?? prices[0] ?? context.priceUsd;
+    const changePct = open > 0 ? ((context.priceUsd - open) / open) * 100 : 0;
+    return [
+      `Market: ${context.question}`,
+      `Open: $${open.toFixed(2)}. Latest: $${context.priceUsd.toFixed(2)} (${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}% vs open).`,
+      `Recent prices: ${recent.map((price) => price.toFixed(2)).join(" → ")}.`,
+    ].join("\n");
+  }
+  const strike = contract.strike == null ? "not published yet" : `$${contract.strike.toFixed(2)}`;
+  const bid = contract.bid == null ? "—" : contract.bid.toFixed(2);
+  const ask = contract.ask == null ? "—" : contract.ask.toFixed(2);
   return [
     `Market: ${context.question}`,
-    `Open: $${open.toFixed(2)}. Latest: $${context.priceUsd.toFixed(2)} (${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}% vs open).`,
-    `Recent prices: ${recent.map((price) => price.toFixed(2)).join(" → ")}.`,
+    `Gemini Prediction Markets contract. YES means ${contract.outcome} resolves yes. NO means it resolves no.`,
+    `Strike: ${strike}. Yes price: ${context.priceUsd.toFixed(2)} (bid ${bid}, ask ${ask}).`,
+    `Time left: ${Math.max(0, contract.secondsLeft)} seconds.`,
+    `Recent yes prices: ${recent.map((price) => price.toFixed(2)).join(" → ")}.`,
   ].join("\n");
 }
 

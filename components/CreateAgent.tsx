@@ -70,7 +70,7 @@ export function CreateAgent({ onCreated }: CreateAgentProps) {
             maxLength={24}
             placeholder="Name"
             onChange={(event) => setName(event.target.value)}
-            className="min-w-32 flex-1 rounded-full border border-white/15 bg-black/30 px-3 py-2 text-sm"
+            className="mc-input min-w-32 flex-1"
           />
           <label className="sr-only" htmlFor="agent-provider">
             Model
@@ -79,7 +79,7 @@ export function CreateAgent({ onCreated }: CreateAgentProps) {
             id="agent-provider"
             value={provider}
             onChange={(event) => setProvider(event.target.value as ModelProvider)}
-            className="rounded-full border border-white/15 bg-black/30 px-3 py-2 text-sm"
+            className="mc-input"
           >
             {PROVIDERS.map((item) => (
               <option key={item.id} value={item.id}>
@@ -98,17 +98,17 @@ export function CreateAgent({ onCreated }: CreateAgentProps) {
           rows={3}
           placeholder="How should this agent call YES, NO, or PASS?"
           onChange={(event) => setPrompt(event.target.value)}
-          className="rounded-2xl border border-white/15 bg-black/30 px-3 py-2 text-sm"
+          className="mc-input"
         />
         <button
           type="submit"
           disabled={busy}
-          className="self-start rounded-full bg-white px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-40"
+          className="mc-btn mc-btn-gold self-start"
         >
           {busy ? "Saving…" : "Add to the desk"}
         </button>
       </form>
-      {message ? <p className="mt-3 text-sm text-zinc-200">{message}</p> : null}
+      {message ? <p className="mt-3 text-base text-[#fff8dc]">{message}</p> : null}
     </Panel>
   );
 }

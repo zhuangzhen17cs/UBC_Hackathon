@@ -1,5 +1,5 @@
 import { connection } from "next/server";
-import { ensureClock, finishRound, getRoundSnapshot, openCalls, startRound } from "@/lib/engine/round";
+import { closeRound, ensureClock, finishRound, getRoundSnapshot, openCalls, startRound } from "@/lib/engine/round";
 
 /** Current round. `round` is null in the lobby. */
 export async function GET() {
@@ -25,14 +25,16 @@ export async function POST(request: Request) {
   const action = record.action;
   const result =
     action === "start"
-      ? startRound(record.demo === true)
+      ? await startRound(record.demo === true)
       : action === "open"
         ? openCalls()
         : action === "finish"
-          ? finishRound()
-          : null;
+          ? await finishRound()
+          : action === "close"
+            ? await closeRound()
+            : null;
   if (!result) {
-    return Response.json({ ok: false, error: 'Send { "action": "start" | "open" | "finish" }.' }, { status: 400 });
+    return Response.json({ ok: false, error: 'Send { "action": "start" | "open" | "finish" | "close" }.' }, { status: 400 });
   }
   if (!result.ok) return Response.json(result, { status: 409 });
   return Response.json(result);

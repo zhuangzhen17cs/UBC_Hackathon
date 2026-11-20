@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { demoPrice, scriptedDecision } from "@/lib/engine/drama";
 import { detectEvents } from "@/lib/engine/events";
 import { planMarketPayouts, quoteMarket, resolveMarket } from "@/lib/engine/payouts";
+import { resolutionToResult } from "@/lib/market/gemini-pm";
 import { assertDevnetRpc } from "@/lib/solana/cluster";
 
 const raw = (usdc: number) => BigInt(usdc) * 1_000_000n;
@@ -107,6 +108,11 @@ assert.equal(
   dust.reduce((sum, plan) => sum + plan.raw, 0n),
   4n,
 );
+
+assert.equal(resolutionToResult("yes"), "YES");
+assert.equal(resolutionToResult("NO"), "NO");
+assert.equal(resolutionToResult("void"), "PUSH");
+assert.equal(resolutionToResult(null), null);
 
 assert.equal(resolveMarket(100, 101), "YES");
 assert.equal(resolveMarket(100, 99), "NO");

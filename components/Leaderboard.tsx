@@ -23,7 +23,7 @@ export function Leaderboard({ rows, settled }: LeaderboardProps) {
         {rows.map((row) => {
           const width = row.stakeUsd > 0 ? Math.max(8, (row.stakeUsd / peak) * 100) : 0;
           return (
-            <li key={row.id} className="relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]">
+            <li key={row.id} className="mc-slot relative overflow-hidden">
               <span
                 className="absolute inset-y-0 left-0 opacity-25"
                 style={{ width: `${width}%`, backgroundColor: row.color }}
@@ -31,17 +31,17 @@ export function Leaderboard({ rows, settled }: LeaderboardProps) {
               />
               <div className="relative flex items-center justify-between gap-3 px-3 py-2 text-sm">
                 <span className="flex min-w-0 items-center gap-3">
-                  <span className="w-4 font-mono text-zinc-400 tabular-nums">{row.rank}</span>
+                  <span className="w-4 text-[#f6d56a] mc-num">{row.rank}</span>
                   <span
-                    className="inline-block size-2 shrink-0 rounded-full"
+                    className="inline-block size-3 shrink-0 border-2 border-black"
                     style={{ backgroundColor: row.color }}
                     aria-hidden="true"
                   />
-                  <span className="truncate font-medium">{row.name}</span>
+                  <span className="truncate font-bold">{row.name}</span>
                 </span>
-                <span className="text-right font-mono tabular-nums">
-                  <span className="block text-zinc-50">{row.stakeUsd.toFixed(2)}</span>
-                  <span className="block text-[11px] text-zinc-500">{row.side}</span>
+                <span className="text-right mc-num">
+                  <span className="block text-[#fff8dc]">{row.stakeUsd.toFixed(2)}</span>
+                  <span className="block text-sm text-[#ffe7a3]">{row.side}</span>
                 </span>
               </div>
             </li>

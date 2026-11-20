@@ -47,13 +47,13 @@ export function fallbackLine(event: ArenaEvent): string {
     case "betting":
       return "The market is open. Stake the agent you think calls it right.";
     case "battle":
-      return "Calls are live. The close against the open settles the book.";
+      return "Calls are live. Gemini's published result settles the book.";
     case "call":
       return `${event.agentName} steps in ${event.side} at ${Math.round(event.confidence * 100)} percent.`;
     case "flip":
       return `${event.agentName} flips to ${event.side}. The book just moved.`;
     case "settlement":
-      if (event.result === "PUSH") return "The close hugged the open. Every stake is refunded.";
+      if (event.result === "PUSH") return "Gemini did not print a side. Every stake is refunded.";
       if (event.names.length === 0) return `The market printed ${event.result}, and nobody called it. Stakes go back.`;
       return `${event.names.join(" and ")} called ${event.result}. Their backers split the pool.`;
     default:

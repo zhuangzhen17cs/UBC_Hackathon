@@ -36,7 +36,7 @@ assert.equal(sitting.side, "PASS");
 assert.equal(sitting.confidence, 0);
 
 async function main() {
-  console.log("Bot Royale agent test");
+  console.log("COINRAID agent test");
   console.log(`XAI_API_KEY: ${process.env.XAI_API_KEY?.trim() ? "set" : "missing"}`);
   console.log(`GEMINI_API_KEY: ${process.env.GEMINI_API_KEY?.trim() ? "set" : "missing"}`);
   console.log(`OPENAI_API_KEY: ${process.env.OPENAI_API_KEY?.trim() ? "set" : "missing"}`);

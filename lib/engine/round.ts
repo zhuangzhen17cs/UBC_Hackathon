@@ -1,11 +1,10 @@
 import { decide } from "@/lib/agents/decide";
 import { listAgents } from "@/lib/agents/registry";
 import { getCommentaryLine, narrate, onCommentary, resetCommentary } from "@/lib/engine/commentary";
-import { demoPrice, scriptedDecision } from "@/lib/engine/drama";
 import { detectEvents } from "@/lib/engine/events";
 import { planMarketPayouts, resolveMarket } from "@/lib/engine/payouts";
+import { lockNextSolContract, readContractResult, refreshContract, type GeminiLock } from "@/lib/market/gemini-pm";
 import { MARKET_QUESTION } from "@/lib/market/question";
-import { getLatestPrice } from "@/lib/market/price";
 import { sendUsdc } from "@/lib/solana/betting";
 import { sendMemo } from "@/lib/solana/memo";
 import { getAgentKeypair, getEscrowKeypair, rawToUsdc, usdcToRaw } from "@/lib/solana/wallets";
@@ -23,7 +22,7 @@ import type {
 /**
  * One prediction market in this Node process.
  * Humans stake on agents during betting. Agents call YES, NO, or PASS during battle.
- * The close versus the open settles the book. Payouts are devnet transfers.
+ * Gemini's published result settles the book. Payouts are devnet transfers.
  */
 
 type Book = {
@@ -49,8 +48,11 @@ type LiveRound = {
   openPrice: number | null;
   result: MarketResult | null;
   lastPrice: number | null;
-  /** First real SOL price. Demo ticks are multiples of this, and it is the open. */
-  anchor: number | null;
+  /** Gemini SOL contract locked at the start. Null only on a round created before this field. */
+  contract: GeminiLock | null;
+  /** How long to wait after expiry for Gemini to publish yes or no. */
+  resolutionGraceMs: number;
+  resolving: boolean;
   tickIndex: number;
   prices: number[];
   agents: Book[];
@@ -73,7 +75,8 @@ const USED_KEY = "__botRoyaleUsedBets";
 const CALL_MEMORY = 200;
 const CALL_SNAPSHOT = 24;
 const PRICE_MEMORY = 24;
-const DEMO_ANCHOR_FALLBACK = 150;
+const RESOLUTION_GRACE_MS = 90_000;
+const CALLS_AFTER_BETTING_MS = 45_000;
 
 function memory(): Engine {
   const host = globalThis as typeof globalThis & { [ENGINE_KEY]?: Engine };
@@ -101,7 +104,9 @@ function hydrate(round: LiveRound) {
   round.payouts ??= [];
   round.calls ??= [];
   round.tickIndex ??= 0;
-  round.anchor ??= null;
+  round.contract ??= null;
+  round.resolutionGraceMs ??= RESOLUTION_GRACE_MS;
+  round.resolving ??= false;
   round.openPrice ??= null;
   round.result ??= null;
   round.question ??= MARKET_QUESTION;
@@ -173,19 +178,33 @@ function snapshotAgents(round: LiveRound): RoundSnapshot["agents"] {
 
 function toSnapshot(round: LiveRound): RoundSnapshot {
   hydrate(round);
-  if (round.phase === "settlement" && round.result == null) {
+  if (round.phase === "settlement" && round.result == null && !round.contract) {
     round.result = resolveMarket(round.openPrice, round.lastPrice);
   }
   const agents = snapshotAgents(round);
   const result = round.result;
+  const contract = round.contract;
   return {
     id: round.id,
     phase: round.phase,
     demo: round.demo,
     phaseEndsAt: new Date(round.phaseEndsAt).toISOString(),
     question: round.question,
-    openPrice: round.openPrice,
-    priceUsd: round.lastPrice,
+    openPrice: contract?.strike ?? round.openPrice,
+    priceUsd: contract?.yesPrice ?? round.lastPrice,
+    contract: contract
+      ? {
+          eventTicker: contract.eventTicker,
+          instrumentSymbol: contract.instrumentSymbol,
+          outcome: contract.outcome,
+          expiresAt: new Date(contract.expiresAtMs).toISOString(),
+          yesPrice: contract.yesPrice,
+          bid: contract.bid,
+          ask: contract.ask,
+          strike: contract.strike,
+          awaitingResult: round.phase === "battle" && Date.now() >= contract.expiresAtMs,
+        }
+      : null,
     result,
     agents,
     calls: round.calls.slice(-CALL_SNAPSHOT).reverse(),
@@ -237,22 +256,56 @@ function arm(delayMs: number) {
 
 function beginBattle(round: LiveRound) {
   round.phase = "battle";
-  round.phaseEndsAt = Date.now() + round.battleMs;
+  round.phaseEndsAt = round.contract?.expiresAtMs ?? Date.now() + round.battleMs;
   round.nextTickAt = Date.now();
   publish();
   narrate({ type: "battle" });
+  if (Date.now() >= round.phaseEndsAt) void enterSettlement(round);
 }
 
-function enterSettlement(round: LiveRound) {
+function applySettlement(round: LiveRound, result: MarketResult) {
   if (round.phase === "settlement") return;
   round.phase = "settlement";
-  round.result = resolveMarket(round.openPrice, round.lastPrice);
+  round.result = result;
+  round.resolving = false;
   const names = round.agents
-    .filter((agent) => round.result === "YES" || round.result === "NO" ? agent.side === round.result : false)
+    .filter((agent) => (result === "YES" || result === "NO" ? agent.side === result : false))
     .map((agent) => agent.name);
   publish();
-  narrate({ type: "settlement", names, result: round.result });
+  narrate({ type: "settlement", names, result });
   void settle(round);
+}
+
+async function publishedResult(round: LiveRound): Promise<MarketResult | null> {
+  if (!round.contract) return resolveMarket(round.openPrice, round.lastPrice);
+  return readContractResult(round.contract.eventTicker, round.contract.instrumentSymbol);
+}
+
+/** Settle from Gemini. If the result is not up yet, wait out the grace period, then refund. */
+async function enterSettlement(round: LiveRound) {
+  if (round.phase === "settlement" || round.resolving) return;
+  round.resolving = true;
+  let result: MarketResult | null = null;
+  try {
+    result = await publishedResult(round);
+  } catch {
+    result = null;
+  }
+  const phase = round.phase as LiveRound["phase"];
+  if (memory().round !== round || phase === "settlement") {
+    round.resolving = false;
+    return;
+  }
+  const expiry = round.contract?.expiresAtMs ?? round.phaseEndsAt;
+  const stillWaiting = result == null && Date.now() < expiry + round.resolutionGraceMs;
+  if (stillWaiting) {
+    round.resolving = false;
+    round.phaseEndsAt = Date.now() + 5_000;
+    publish();
+    arm(5_000);
+    return;
+  }
+  applySettlement(round, result ?? "PUSH");
 }
 
 async function settle(round: LiveRound) {
@@ -286,7 +339,7 @@ async function settle(round: LiveRound) {
 function attachMemo(round: LiveRound, call: RoundCall) {
   const payer = getAgentKeypair(call.agentId) ?? getEscrowKeypair();
   if (!payer) return;
-  const text = `Bot Royale ${round.id.slice(0, 8)} ${call.agentName} ${call.side} @ ${call.priceUsd.toFixed(2)}`.slice(0, 180);
+  const text = `COINRAID ${round.id.slice(0, 8)} ${call.agentName} ${call.side} @ ${call.priceUsd.toFixed(2)}`.slice(0, 180);
   void sendMemo(payer, text).then((signature) => {
     if (!signature || memory().round !== round) return;
     call.signature = signature;
@@ -294,28 +347,21 @@ function attachMemo(round: LiveRound, call: RoundCall) {
   });
 }
 
-async function priceForTick(round: LiveRound): Promise<number | null> {
-  if (!round.demo) {
-    const quote = await getLatestPrice();
-    return quote.priceUsd != null && quote.priceUsd > 0 ? quote.priceUsd : null;
+async function refreshLockedContract(round: LiveRound): Promise<number | null> {
+  if (!round.contract) return null;
+  try {
+    const fresh = await refreshContract(round.contract.eventTicker);
+    round.contract = { ...round.contract, ...fresh, eventTicker: round.contract.eventTicker, instrumentSymbol: round.contract.instrumentSymbol };
+    if (fresh.strike != null) round.openPrice = fresh.strike;
+  } catch {
+    // Keep the last quote. One quiet poll should not pass the whole desk.
   }
-  if (round.anchor == null) {
-    try {
-      const quote = await getLatestPrice();
-      round.anchor = quote.priceUsd != null && quote.priceUsd > 0 ? quote.priceUsd : DEMO_ANCHOR_FALLBACK;
-    } catch {
-      round.anchor = DEMO_ANCHOR_FALLBACK;
-    }
-  }
-  return demoPrice(round.anchor, round.tickIndex);
+  return round.contract.yesPrice;
 }
 
 async function runTick(round: LiveRound) {
-  const price = await priceForTick(round);
+  const price = await refreshLockedContract(round);
   if (price == null || !(price > 0)) return;
-  if (round.openPrice == null) {
-    round.openPrice = round.demo && round.anchor != null ? round.anchor : price;
-  }
 
   const tick = round.tickIndex;
   const before = round.agents.map((agent) => ({
@@ -331,17 +377,29 @@ async function runTick(round: LiveRound) {
   }
 
   const history = round.prices.slice(0, -1).map((priceUsd) => ({ priceUsd }));
-  const timeoutMs = Math.max(3_000, Math.min(12_000, round.tickMs - 500));
+  const timeoutMs = 20_000;
+  const secondsLeft = round.contract ? Math.round((round.contract.expiresAtMs - Date.now()) / 1000) : 0;
   const decisions = await Promise.all(
     round.agents.map(async (agent) => {
-      let decision: AgentDecision = await decide(
+      const decision: AgentDecision = await decide(
         agent.id,
-        { question: round.question, openPrice: round.openPrice, priceUsd: price, history },
+        {
+          question: round.question,
+          openPrice: round.openPrice,
+          priceUsd: price,
+          history,
+          contract: round.contract
+            ? {
+                outcome: round.contract.outcome,
+                strike: round.contract.strike,
+                bid: round.contract.bid,
+                ask: round.contract.ask,
+                secondsLeft,
+              }
+            : undefined,
+        },
         { timeoutMs },
       );
-      if (round.demo && decision.offline) {
-        decision = scriptedDecision(agent.id, tick) ?? decision;
-      }
       return { agent, decision };
     }),
   );
@@ -401,7 +459,7 @@ async function advance() {
 
   if (round.phase !== "battle") return;
   if (Date.now() >= round.phaseEndsAt) {
-    enterSettlement(round);
+    await enterSettlement(round);
     return;
   }
 
@@ -418,7 +476,7 @@ async function advance() {
 
   if (memory().round !== round || round.phase !== "battle") return;
   if (Date.now() >= round.phaseEndsAt) {
-    enterSettlement(round);
+    await enterSettlement(round);
     return;
   }
   arm(Math.min(round.nextTickAt, round.phaseEndsAt) - Date.now());
@@ -443,30 +501,105 @@ export function openCalls(): { ok: true; round: RoundSnapshot } | { ok: false; e
   return { ok: true, round: toSnapshot(round) };
 }
 
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /**
- * Settle with the latest price. Refuses to settle before the open is known,
- * because that price is the whole question.
+ * Settle from Gemini's published result. Near expiry, wait a few seconds,
+ * because the result usually lands just after the clock.
  */
-export function finishRound(): { ok: true; round: RoundSnapshot } | { ok: false; error: string } {
+export async function finishRound(): Promise<{ ok: true; round: RoundSnapshot } | { ok: false; error: string }> {
   const round = memory().round;
   if (!round) return { ok: false, error: "No round is running." };
   hydrate(round);
   if (round.phase === "betting") return { ok: false, error: "Start the calls before settling." };
+  if (round.phase === "settlement") return { ok: true, round: toSnapshot(round) };
   if (round.phase !== "battle") return { ok: false, error: "This round is already settled." };
-  if (round.openPrice == null || round.lastPrice == null) {
-    return { ok: false, error: "Wait for the first price, then settle." };
+
+  const expiry = round.contract?.expiresAtMs ?? 0;
+  if (round.contract && Date.now() + 1_500 < expiry) {
+    return { ok: false, error: "This contract is still open. It settles on its own a few seconds after the end time." };
   }
-  enterSettlement(round);
+
+  const deadline = Date.now() + 20_000;
+  let result: MarketResult | null = null;
+  while (Date.now() <= deadline) {
+    try {
+      result = await publishedResult(round);
+    } catch {
+      result = null;
+    }
+    if (result != null || memory().round !== round || round.phase !== "battle") break;
+    await wait(2_000);
+  }
+
+  if (memory().round !== round) return { ok: false, error: "That round already ended." };
+  if (round.phase === "settlement") return { ok: true, round: toSnapshot(round) };
+  if (result == null) {
+    return { ok: false, error: "Gemini is still writing the result. This round will settle on its own." };
+  }
+  applySettlement(round, result);
   return { ok: true, round: toSnapshot(round) };
 }
 
-export function startRound(demo: boolean): { ok: true; round: RoundSnapshot } | { ok: false; error: string } {
+/**
+ * Leave the round and return to the lobby.
+ * A round that has not settled is a push: every stake is refunded first.
+ */
+export async function closeRound(): Promise<{ ok: true; round: RoundSnapshot | null } | { ok: false; error: string }> {
+  const engine = memory();
+  const round = engine.round;
+  if (!round) return { ok: true, round: null };
+  hydrate(round);
+  if (engine.timer) clearTimeout(engine.timer);
+  engine.timer = null;
+  engine.generation += 1;
+
+  if (round.phase !== "settlement") {
+    round.phase = "settlement";
+    round.result = "PUSH";
+    round.resolving = false;
+    publish();
+    const idleUntil = Date.now() + 25_000;
+    while (memory().ticking && Date.now() < idleUntil) await wait(200);
+    await settle(round);
+  }
+
+  const failed = round.payouts.find((payout) => payout.error);
+  if (failed) {
+    if (memory().round === round) publish();
+    return { ok: false, error: failed.error ?? "The refund did not land." };
+  }
+
+  if (memory().round === round) {
+    engine.round = null;
+    resetCommentary();
+    publish();
+  }
+  return { ok: true, round: getRoundSnapshot() };
+}
+
+export async function startRound(
+  demo: boolean,
+): Promise<{ ok: true; round: RoundSnapshot } | { ok: false; error: string }> {
   const engine = memory();
   if (engine.round && engine.round.phase !== "settlement") {
     return { ok: false, error: "A round is already running." };
   }
 
   const clock = clockFor(demo);
+  let locked: GeminiLock;
+  try {
+    locked = await lockNextSolContract(clock.bettingMs + CALLS_AFTER_BETTING_MS);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Gemini prediction markets did not answer.";
+    return { ok: false, error: message };
+  }
+  if (engine.round && engine.round.phase !== "settlement") {
+    return { ok: false, error: "A round is already running." };
+  }
+
   const roster = listAgents();
   const round: LiveRound = {
     id: crypto.randomUUID(),
@@ -476,13 +609,15 @@ export function startRound(demo: boolean): { ok: true; round: RoundSnapshot } | 
     nextTickAt: 0,
     tickMs: clock.tickMs,
     battleMs: clock.battleMs,
-    question: MARKET_QUESTION,
-    openPrice: null,
+    question: `${locked.title}. Will ${locked.outcome} finish YES?`,
+    openPrice: locked.strike,
     result: null,
-    lastPrice: null,
-    anchor: null,
+    lastPrice: locked.yesPrice,
+    contract: locked,
+    resolutionGraceMs: RESOLUTION_GRACE_MS,
+    resolving: false,
     tickIndex: 0,
-    prices: [],
+    prices: locked.yesPrice != null ? [locked.yesPrice] : [],
     agents: roster.map((agent) => ({
       id: agent.id,
       name: agent.name,
@@ -504,7 +639,7 @@ export function startRound(demo: boolean): { ok: true; round: RoundSnapshot } | 
   publish();
   narrate({ type: "betting" });
   const escrow = getEscrowKeypair();
-  if (escrow) void sendMemo(escrow, `Bot Royale start ${round.id}`);
+  if (escrow) void sendMemo(escrow, `COINRAID start ${round.id}`);
   arm(clock.bettingMs);
   return { ok: true, round: toSnapshot(round) };
 }
@@ -520,11 +655,10 @@ export function placeBet(input: {
   if (!round) return { ok: false, error: "No round is running." };
   hydrate(round);
   if (round.id !== input.roundId) return { ok: false, error: "That bet is for a different round." };
-  if (round.phase !== "betting") return { ok: false, error: "Betting is closed." };
   const used = usedSignatures();
   if (used.has(input.signature)) return { ok: false, error: "That transaction was already counted." };
 
-  if (!round.agents.some((agent) => agent.id === input.agentId)) {
+  const sendBack = (reason: string) => {
     used.add(input.signature);
     const raw = usdcToRaw(input.amount);
     void sendUsdc(input.wallet, raw)
@@ -545,7 +679,15 @@ export function placeBet(input: {
         });
         publish();
       });
-    return { ok: false, error: "That agent is not in this round. The stake is being sent back." };
+    return { ok: false as const, error: reason };
+  };
+
+  if (round.phase !== "betting") {
+    return sendBack("Betting is closed. The stake is being sent back.");
+  }
+
+  if (!round.agents.some((agent) => agent.id === input.agentId)) {
+    return sendBack("That agent is not in this round. The stake is being sent back.");
   }
 
   used.add(input.signature);

@@ -1,21 +1,21 @@
-# Bot Royale
+# COINRAID
 
-AI agents call one market: will SOL finish above the open? Humans connect Phantom and stake a devnet token, shown as USDC, on an agent. If that agent is right, its backers split the profit by stake. A $50 stake on a $100 book takes half the profit, and the stake comes back with it. A wrong call loses the stake. Settlement is a real devnet transfer from the escrow wallet. This is not mainnet.
+AI agents call one live Gemini market: the next 5-minute SOL Up contract. Humans connect Phantom and stake a devnet token, shown as USDC, on an agent. If that agent is right, its backers split the profit by stake. A $50 stake on a $100 book takes half the profit, and the stake comes back with it. A wrong call loses the stake. Settlement is a real devnet transfer from the escrow wallet. This is not mainnet.
 
 The show is the product. The chain is the receipt.
 
 ## Problem
 
-A prediction market is usually a number next to a question. Bot Royale puts a desk of agents on that question and lets the crowd back a caller. The board shows the open, the live price, each call, and each agent's book. Devnet keeps the stake as a real wallet transfer.
+A prediction market is usually a number next to a question. COINRAID puts a desk of agents on that question and lets the crowd back a caller. The board shows the open, the live price, each call, and each agent's book. Devnet keeps the stake as a real wallet transfer.
 
 ## How a round works
 
 1. **Lobby.** Four default agents are on the desk. Anyone can add another with a name, a prompt, and a provider: Grok, Gemini, ChatGPT, or Claude. A new agent joins the next round.
 2. **Staking.** Two minutes on a full round, 20 seconds on a short round. Phantom sends the arena token to escrow with a memo naming the agent. The house keeps 0%.
-3. **Calls.** Every 15 seconds (8 seconds on a short round) each agent returns `{"side":"YES"|"NO"|"PASS","confidence":number,"reason":"string"}`. YES means the close finishes above the open. Bad JSON, a timeout, or a missing key becomes PASS. Each change of side is a devnet memo.
-4. **Settlement.** The last price versus the open is YES, NO, or a push when it is inside 0.05%. Backers of agents who called the winning side split the whole active pool by stake. That payment is their stake plus their share of the profit. PASS stakes are refunded. If nobody called the winning side, everyone is refunded. Payouts are devnet transfers from escrow, with Explorer links.
+3. **Calls.** Every 15 seconds (8 seconds on a short round) each agent returns `{"side":"YES"|"NO"|"PASS","confidence":number,"reason":"string"}`. YES means Gemini's Up contract resolves yes. Bad JSON, a timeout, or a missing key becomes PASS. Each change of side is a devnet memo.
+4. **Settlement.** Gemini publishes `resolutionSide` on that contract. Yes pays the YES callers, no pays the NO callers. If Gemini stays quiet for 90 seconds after expiry, the round is a push. Backers of agents who called the winning side split the whole active pool by stake. That payment is their stake plus their share of the profit. PASS stakes are refunded. If nobody called the winning side, everyone is refunded. Payouts are devnet transfers from escrow, with Explorer links.
 
-A short round also plays a **demo tape**: the first live SOL price is the open, then a scripted rally, crash, and a finish above the open. If a default agent's model is offline, that agent plays a scripted YES, NO, or PASS. A player-made agent with no key passes. A full round always uses the live price and never substitutes a script.
+The round locks the soonest SOL 5-minute contract that still has time for staking plus a few calls. Market data is the public Gemini Prediction Markets API. The arena does not place a Gemini order. A missing model key becomes PASS.
 
 ## Sponsor tech
 
@@ -24,7 +24,8 @@ A short round also plays a **demo tape**: the first live SOL price is the open, 
 | Solana devnet | Escrow wallet, SPL token shown as USDC, memo per decision, payouts |
 | QuickNode Streams | Optional mainnet SOL swap price, posted to `/api/quicknode` |
 | xAI Grok | Degen, Grok Analyst, the commentator, and any agent set to Grok |
-| Gemini, ChatGPT, Claude | Optional providers for Grandma, Contrarian, and player-made agents |
+| Gemini Prediction Markets | The live SOL 5-minute contract: title, Yes price, strike, and the published result |
+| Gemini, ChatGPT, Claude | Optional model providers for Grandma, Contrarian, and player-made agents |
 | ElevenLabs | Speaks the commentator line when a voice id is set |
 
 The price feed works with no keys. Coinbase is the default public SOL/USD source and CoinGecko is the backup. QuickNode is used when `PRICE_SOURCE=quicknode`.
@@ -61,7 +62,7 @@ Optional keys in `.env.local`:
 
 ## What to click
 
-- **Start short round** is the 3-minute demo. Bet during the opening 20 seconds, then watch the tape.
+- **Start short round** gives you 20 seconds to stake, then calls until the Gemini contract expires.
 - **Start round** is about 10 minutes at the live SOL price.
 - The scorebug counts down. Both buttons stay disabled while a round is running.
 - The play-by-play links each memo to Solana Explorer on devnet.
@@ -72,7 +73,7 @@ Optional keys in `.env.local`:
 
 ```bash
 npm run test:agents       # parser, then one call each; PASS without that provider's key
-npm run test:settlement   # profit split, refund, push, demo tape
+npm run test:settlement   # profit split, refund, push, Gemini resolution mapping
 npm run setup:devnet      # wallets, mint, spectator USDC
 ```
 

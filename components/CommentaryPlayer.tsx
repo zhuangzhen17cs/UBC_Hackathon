@@ -77,11 +77,11 @@ export function CommentaryPlayer({ line }: CommentaryPlayerProps) {
       title="Commentary"
       note="Grok writes the line when a key is set. ElevenLabs speaks it when a commentator voice is set."
     >
-      <p className="min-h-12 text-sm text-zinc-200" aria-live="polite">
+      <p className="min-h-12 text-lg text-[#fff8dc]" aria-live="polite">
         {shown ? shown.text : "The commentator is quiet."}
       </p>
       {blocked && active?.hasAudio ? (
-        <button type="button" className="mt-3 rounded-full border border-white/15 px-3 py-1 text-sm" onClick={() => void replay()}>
+        <button type="button" className="mc-btn mt-3" onClick={() => void replay()}>
           Play commentary
         </button>
       ) : null}

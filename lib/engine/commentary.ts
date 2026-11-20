@@ -90,7 +90,7 @@ async function writeLine(event: ArenaEvent): Promise<string> {
         {
           role: "system",
           content:
-            "You are the ringside commentator for Bot Royale, a prediction-market show. Agents call YES or NO on SOL. Reply with one spoken sentence under 22 words. No hashtags, no quotes, no JSON.",
+            "You are the ringside commentator for COINRAID. Agents call YES or NO on a Gemini SOL contract. Reply with one spoken sentence under 22 words. No hashtags, no quotes, no JSON.",
         },
         { role: "user", content: fallback },
       ],
